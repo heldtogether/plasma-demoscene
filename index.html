@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Interactive Plasma</title>
+  <style>
+    body {
+      margin: 0;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+      background: black;
+      color: white;
+      font-family: sans-serif;
+    }
+		#controls {
+			width: 250px;
+			background: #111;
+			padding: 1rem;
+			box-sizing: border-box;
+			display: flex;
+			flex-direction: column;
+			gap: 1rem;
+		}
+		label {
+			display: flex;
+			flex-direction: column;
+			font-size: 0.9rem;
+		}
+		input[type="range"] {
+			width: 100%;
+		}
+		canvas {
+			flex: 1;
+			display: block;
+		}
+		#presets button {
+			margin-bottom: 0.5rem;
+			padding: 0.5rem;
+			background: #222;
+			border: 1px solid #444;
+			color: white;
+			cursor: pointer;
+		}
+		#presets button:hover {
+			background: #333;
+		}
+	</style>
+</head>
+<body>
+	<div id="controls">
+		<label>
+			X Frequency
+			<input type="range" id="xFreq" min="1" max="30" step="0.1" value="16">
+		</label>
+		<label>
+			Y Frequency
+			<input type="range" id="yFreq" min="1" max="30" step="0.1" value="8">
+		</label>
+		<label>
+			XY Mix Frequency
+			<input type="range" id="xyFreq" min="1" max="30" step="0.1" value="16">
+		</label>
+		<label>
+			Radial Frequency
+			<input type="range" id="radialFreq" min="1" max="30" step="0.1" value="8">
+		</label>
+		<label>
+			Time Speed
+			<input type="range" id="timeSpeed" min="0.01" max="1" step="0.01" value="0.05">
+		</label>
+
+		<div id="presets">
+			<button data-preset="wobble">Wobble</button>
+			<button data-preset="storm">Storm</button>
+			<button data-preset="calm">Calm</button>
+			<button data-preset="frenzy">Frenzy</button>
+		</div>
+	</div>
+	<canvas id="plasma"></canvas>
+
+	<script>
+		const canvas = document.getElementById('plasma');
+		const ctx = canvas.getContext('2d');
+		const controls = {
+			xFreq: document.getElementById('xFreq'),
+			yFreq: document.getElementById('yFreq'),
+			xyFreq: document.getElementById('xyFreq'),
+			radialFreq: document.getElementById('radialFreq'),
+			timeSpeed: document.getElementById('timeSpeed'),
+		};
+
+		const presets = {
+			wobble: {
+				xFreq: 16,
+				yFreq: 8,
+				xyFreq: 16,
+				radialFreq: 8,
+				timeSpeed: 0.05,
+			},
+			storm: {
+				xFreq: 5,
+				yFreq: 5,
+				xyFreq: 5,
+				radialFreq: 3,
+				timeSpeed: 0.3,
+			},
+			calm: {
+				xFreq: 25,
+				yFreq: 25,
+				xyFreq: 25,
+				radialFreq: 20,
+				timeSpeed: 0.01,
+			},
+			frenzy: {
+				xFreq: 4,
+				yFreq: 3,
+				xyFreq: 2,
+				radialFreq: 2,
+				timeSpeed: 0.6,
+			}
+		};
+
+		function applyPreset(name) {
+			const preset = presets[name];
+			if (!preset) return;
+			controls.xFreq.value = preset.xFreq;
+			controls.yFreq.value = preset.yFreq;
+			controls.xyFreq.value = preset.xyFreq;
+			controls.radialFreq.value = preset.radialFreq;
+			controls.timeSpeed.value = preset.timeSpeed;
+		}
+
+		document.querySelectorAll('#presets button').forEach(button => {
+			button.addEventListener('click', () => {
+				applyPreset(button.dataset.preset);
+			});
+		});
+
+		let width, height;
+		function resize() {
+			width = canvas.width = window.innerWidth - document.getElementById('controls').offsetWidth;
+			height = canvas.height = window.innerHeight;
+		}
+		window.addEventListener('resize', resize);
+		resize();
+
+		const imageData = ctx.createImageData(width, height);
+		const data = imageData.data;
+
+		let time = 0;
+
+		function clamp(value, min, max) {
+			return Math.max(min, Math.min(max, value));
+		}
+
+		function plasma(x, y, t, params) {
+			return (
+				Math.sin(x / params.xFreq + t) +
+				Math.sin(y / params.yFreq + t / 2) +
+				Math.sin((x + y) / params.xyFreq + t / 3) +
+				Math.sin(Math.sqrt(x * x + y * y) / params.radialFreq - t)
+			);
+		}
+
+		function render() {
+			const t = time;
+			const params = {
+				xFreq: parseFloat(controls.xFreq.value),
+				yFreq: parseFloat(controls.yFreq.value),
+				xyFreq: parseFloat(controls.xyFreq.value),
+				radialFreq: parseFloat(controls.radialFreq.value),
+			};
+
+			for (let y = 0; y < height; y++) {
+				for (let x = 0; x < width; x++) {
+					const index = (y * width + x) * 4;
+					const val = plasma(x, y, t, params);
+					const color = Math.floor((Math.sin(val) + 1) * 128);
+
+					data[index + 0] = color;
+					data[index + 1] = 255 - color;
+					data[index + 2] = (color + 128) % 256;
+					data[index + 3] = 255;
+				}
+			}
+
+			ctx.putImageData(imageData, 0, 0);
+			time += parseFloat(controls.timeSpeed.value);
+			requestAnimationFrame(render);
+		}
+
+		render();
+	</script>
+</body>
+</html>
+
